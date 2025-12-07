@@ -1,16 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import PostCard from '@/components/PostCard';
+import { Hash, X } from 'lucide-react'; // Добавь эти импорты
 
 interface HomeClientProps {
   initialPosts: any[];
+  initialHashtags: any[]; // Добавляем начальные хештеги
   error?: string;
 }
 
-export default function HomeClient({ initialPosts, error }: HomeClientProps) {
+export default function HomeClient({ initialPosts, initialHashtags, error }: HomeClientProps) {
   const [posts, setPosts] = useState(initialPosts);
+  const [hashtags, setHashtags] = useState(initialHashtags);
+  const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -21,37 +26,76 @@ export default function HomeClient({ initialPosts, error }: HomeClientProps) {
     });
   });
 
-  const refreshPosts = async () => {
+  const loadPosts = async (hashtag?: string | null) => {
     setLoading(true);
     try {
-      const { data: newPosts } = await supabase
+      let query = supabase
         .from('posts')
-        .select('id, title, content, created_at')
-        .order('created_at', { ascending: false })
-        .limit(3);
+        .select(`
+          *,
+          profiles(*),
+          post_hashtags(
+            hashtag:hashtags(*)
+          ),
+          likes(count),
+          comments(count)
+        `)
+        .order('created_at', { ascending: false });
+
+      // Фильтрация по хештегу
+      if (hashtag) {
+        query = query.contains('hashtags', [{ name: hashtag }]);
+      }
+
+      const { data: newPosts } = await query;
 
       if (newPosts) {
-        const postsWithStubs = newPosts.map(post => ({
-          ...post,
-          profiles: {
-            username: 'user',
-            full_name: 'Автор',
-            avatar_url: null
-          }
-        }));
-        setPosts(postsWithStubs);
+        setPosts(newPosts);
       }
     } catch (err) {
-      console.error('Ошибка обновления:', err);
+      console.error('Ошибка загрузки:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleHashtagClick = (hashtagName: string) => {
+    if (selectedHashtag === hashtagName) {
+      setSelectedHashtag(null);
+      loadPosts(null);
+    } else {
+      setSelectedHashtag(hashtagName);
+      loadPosts(hashtagName);
+    }
+  };
+
+  const clearFilter = () => {
+    setSelectedHashtag(null);
+    loadPosts(null);
+  };
+
+  const refreshPosts = async () => {
+    await loadPosts(selectedHashtag);
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4">
+      {/* Заголовок с фильтрами */}
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Лента постов</h1>
+        <div>
+          <h1 className="text-3xl font-bold">
+            {selectedHashtag ? `Посты с #${selectedHashtag}` : 'Лента постов'}
+          </h1>
+          {selectedHashtag && (
+            <button
+              onClick={clearFilter}
+              className="flex items-center mt-2 text-gray-600 hover:text-gray-900"
+            >
+              <X size={16} className="mr-1" />
+              Очистить фильтр
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
           {user && (
             <Link 
@@ -71,6 +115,45 @@ export default function HomeClient({ initialPosts, error }: HomeClientProps) {
         </div>
       </div>
 
+      {/* Популярные хештеги */}
+      <div className="mb-6">
+        <div className="flex items-center mb-3">
+          <Hash size={18} className="mr-2 text-gray-600" />
+          <h3 className="font-medium text-gray-900">Популярные хештеги</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={clearFilter}
+            className={`px-3 py-1 rounded-full ${!selectedHashtag ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+          >
+            Все
+          </button>
+          {hashtags.map(tag => (
+            <button
+              key={tag.id}
+              onClick={() => handleHashtagClick(tag.name)}
+              className={`px-3 py-1 rounded-full flex items-center ${
+                selectedHashtag === tag.name 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300'
+              }`}
+            >
+              #{tag.name}
+              {tag.post_count && (
+                <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
+                  selectedHashtag === tag.name 
+                    ? 'bg-blue-500' 
+                    : 'bg-gray-300'
+                }`}>
+                  {tag.post_count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Остальной код без изменений */}
       {error && (
         <div className="mb-6 p-4 bg-red-50 rounded-lg">
           <p className="text-red-700">{error}</p>
@@ -79,7 +162,11 @@ export default function HomeClient({ initialPosts, error }: HomeClientProps) {
 
       {posts.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-lg mb-4">Пока нет постов</p>
+          <p className="text-gray-500 text-lg mb-4">
+            {selectedHashtag 
+              ? `Пока нет постов с #${selectedHashtag}` 
+              : 'Пока нет постов'}
+          </p>
           {user ? (
             <Link 
               href="/create-post" 
@@ -99,29 +186,12 @@ export default function HomeClient({ initialPosts, error }: HomeClientProps) {
       ) : (
         <div className="space-y-4">
           {posts.map((post) => (
-            <div key={post.id} className="bg-white p-6 rounded-lg shadow border hover:shadow-md transition-shadow">
-              <div className="flex items-center mb-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-blue-600 font-bold">
-                    {post.profiles.full_name.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-medium">{post.profiles.full_name}</p>
-                  <p className="text-gray-500 text-sm">
-                    {new Date(post.created_at).toLocaleDateString('ru-RU')}
-                  </p>
-                </div>
-              </div>
-              <h2 className="text-xl font-bold mb-2">{post.title}</h2>
-              <p className="text-gray-700">{post.content}</p>
-              
-              <div className="flex gap-4 mt-4 pt-4 border-t">
-                <button className="text-gray-600 hover:text-red-500">❤️</button>
-                <button className="text-gray-600 hover:text-blue-500">💬</button>
-                <button className="text-gray-600 hover:text-green-500 ml-auto">↪️</button>
-              </div>
-            </div>
+            <PostCard 
+              key={post.id} 
+              post={post} 
+              currentUser={user}
+              onHashtagClick={handleHashtagClick}
+            />
           ))}
         </div>
       )}

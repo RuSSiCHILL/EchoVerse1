@@ -163,7 +163,7 @@ export default function CommentsSection({
               <img
                 src={comment.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.profiles?.username}`}
                 alt={comment.profiles?.full_name}
-                className="w-8 h-8 rounded-full mt-1 flex-shrink-0"
+                className="w-8 h-8 rounded-full mt-1 shrink-0"
               />
 
               {/* Контент комментария */}
@@ -249,7 +249,7 @@ export default function CommentsSection({
           <img
             src={currentUser.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.email}`}
             alt="Ваш аватар"
-            className="w-8 h-8 rounded-full mt-1 flex-shrink-0"
+            className="w-8 h-8 rounded-full mt-1 shrink-0"
           />
           <div className="flex-1">
             <div className="flex">

@@ -3,37 +3,50 @@ import HomeClient from './HomeClient';
 
 export default async function HomePage() {
   try {
-    // 1. Простой запрос без JOIN (самый быстрый)
-    const { data: posts, error } = await supabase
+    // 1. Загружаем посты
+    const { data: posts, error: postsError } = await supabase
       .from('posts')
-      .select('id, title, content, created_at')
+      .select(`
+        *,
+        profiles(*),
+        post_hashtags(
+          hashtag:hashtags(*)
+        ),
+        likes(count),
+        comments(count)
+      `)
       .order('created_at', { ascending: false })
-      .limit(3);
+      .limit(10);
 
-    if (error) {
-      console.error('Ошибка загрузки постов:', error);
-      return <HomeClient initialPosts={[]} error="Ошибка загрузки данных" />;
+    if (postsError) {
+      console.error('Ошибка загрузки постов:', postsError);
+      return <HomeClient initialPosts={[]} initialHashtags={[]} error="Ошибка загрузки данных" />;
     }
 
-    // 2. Если постов нет
+    // 2. Загружаем популярные хештеги
+    const { data: hashtags } = await supabase
+      .from('hashtags')
+      .select(`
+        *,
+        post_hashtags(count)
+      `)
+      .order('name')
+      .limit(10);
+
+    const hashtagsWithCount = hashtags?.map(tag => ({
+      ...tag,
+      post_count: tag.post_hashtags[0]?.count || 0
+    })) || [];
+
+    // 3. Если постов нет
     if (!posts || posts.length === 0) {
-      return <HomeClient initialPosts={[]} />;
+      return <HomeClient initialPosts={[]} initialHashtags={hashtagsWithCount} />;
     }
 
-    // 3. Добавляем заглушки для профилей (не грузим отдельно)
-    const postsWithStubs = posts.map(post => ({
-      ...post,
-      profiles: {
-        username: 'user',
-        full_name: 'Автор',
-        avatar_url: null
-      }
-    }));
-
-    return <HomeClient initialPosts={postsWithStubs} />;
+    return <HomeClient initialPosts={posts} initialHashtags={hashtagsWithCount} />;
 
   } catch (error) {
     console.error('Критическая ошибка:', error);
-    return <HomeClient initialPosts={[]} error="Системная ошибка" />;
+    return <HomeClient initialPosts={[]} initialHashtags={[]} error="Системная ошибка" />;
   }
 }
