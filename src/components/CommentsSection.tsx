@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
 interface CommentsSectionProps {
-  postId: number;
+  postId: string;
   currentUser?: any;
   initialCommentsCount?: number;
 }

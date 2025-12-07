@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface LikeButtonProps {
-  postId: number;
+  postId: string;
   initialLikes: number;
   currentUser?: any;
   size?: 'sm' | 'md' | 'lg';

@@ -17,6 +17,13 @@ export default function PostCard({ post, currentUser, onHashtagClick }: PostCard
   const [hashtags, setHashtags] = useState<any[]>([]);
   const [commentsCount, setCommentsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  console.log('🎯 PostCard Debug:', { 
+    id: post.id, 
+    idType: typeof post.id,
+    idLength: post.id?.length,
+    isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(post.id),
+    title: post.title?.substring(0, 20) + '...'
+  });
 
   // Загружаем хештеги и статистику для поста
   useEffect(() => {
@@ -162,11 +169,10 @@ export default function PostCard({ post, currentUser, onHashtagClick }: PostCard
 
       {/* Заголовок и контент */}
       <Link href={`/post/${post.id}`} className="block">
-        <h2 className="text-xl font-bold mb-3 text-gray-900 hover:text-blue-600 transition-colors">
+        <h2 className="text-xl font-bold mb-3 text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">
           {post.title || 'Без заголовка'}
         </h2>
       </Link>
-      
       <p className="text-gray-700 mb-4 whitespace-pre-line">
         {post.content || 'Нет содержимого'}
       </p>
