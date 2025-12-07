@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Оптимизации */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+  font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+}
+
+/* Улучшение производительности изображений */
+img {
+  content-visibility: auto;
+}
+
+/* Улучшение скролла */
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+}
