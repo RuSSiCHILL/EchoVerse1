@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-
 // Проверяем переменные окружения
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
   throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set');
@@ -13,7 +12,7 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Создаем клиент с оптимизациями
+// Создаем клиент с настройками для Next.js
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -23,10 +22,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'x-application-name': 'vk-blog',
+      'x-application-name': 'echoverse',
     },
-  },
-  db: {
-    schema: 'public',
   },
 });

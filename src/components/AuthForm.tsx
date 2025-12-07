@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase'; // Импортируем напрямую из supabase
 import { useRouter } from 'next/navigation';
 
 interface AuthFormProps {
@@ -28,51 +28,54 @@ export default function AuthForm({ type }: AuthFormProps) {
 
     try {
       if (isRegister) {
-        // 1. Простая регистрация без немедленного создания профиля
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        // ✅ РЕГИСТРАЦИЯ - используем supabase напрямую
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/login`,
             data: {
               username,
               full_name: fullName,
-            }
+            },
+            emailRedirectTo: `${origin}/auth/callback`,
           }
         });
 
-        if (authError) {
-          throw new Error(authError.message || 'Ошибка регистрации');
+        if (error) {
+          throw new Error(error.message || 'Ошибка регистрации');
         }
 
-        // 2. НЕ создаем профиль сразу - пусть триггер сделает это асинхронно
-        // 3. Показываем успех немедленно
+        if (data.user && !data.user.identities?.length) {
+          throw new Error('Пользователь с таким email уже существует');
+        }
+
         setSuccess('Регистрация успешна! Проверьте email для подтверждения.');
         
-        // 4. Автоматический переход через 3 секунды
+        // Автоматический переход через 3 секунды
         setTimeout(() => {
           router.push('/login');
         }, 3000);
 
       } else {
-        // Вход
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
+        // ✅ ВХОД - используем supabase напрямую
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (authError) {
-          throw new Error(authError.message || 'Неверный email или пароль');
+        if (error) {
+          throw new Error(error.message || 'Неверный email или пароль');
         }
 
         if (data.user) {
-          // Быстрый редирект без дополнительных проверок
-          router.push('/');
-          router.refresh();
+          // Принудительный редирект для обновления сессии
+          window.location.href = '/';
         }
       }
     } catch (error: any) {
-      // Упрощенная обработка ошибок
+      // Извлекаем понятное сообщение об ошибке
       let errorMessage = 'Произошла ошибка при авторизации';
       
       if (error.message?.includes('User already registered')) {
@@ -138,7 +141,7 @@ export default function AuthForm({ type }: AuthFormProps) {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                className="w-full p-3 border rounded-lg"
                 placeholder="Иван Иванов"
                 required
                 disabled={isLoading}
@@ -155,7 +158,7 @@ export default function AuthForm({ type }: AuthFormProps) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+            className="w-full p-3 border rounded-lg"
             placeholder="your@email.com"
             required
             disabled={isLoading}
@@ -170,7 +173,7 @@ export default function AuthForm({ type }: AuthFormProps) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+            className="w-full p-3 border rounded-lg"
             placeholder="••••••••"
             required
             minLength={6}
@@ -184,7 +187,7 @@ export default function AuthForm({ type }: AuthFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-lg shadow-sm hover:shadow-md"
+          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
         >
           {isLoading ? (
             <div className="flex items-center justify-center">
@@ -202,46 +205,19 @@ export default function AuthForm({ type }: AuthFormProps) {
         {isRegister ? (
           <p className="text-gray-600">
             Уже есть аккаунт?{' '}
-            <a 
-              href="/login" 
-              className="text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors"
-            >
+            <a href="/login" className="text-blue-600 hover:text-blue-800 font-medium">
               Войти
             </a>
           </p>
         ) : (
           <p className="text-gray-600">
             Нет аккаунта?{' '}
-            <a 
-              href="/register" 
-              className="text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors"
-            >
+            <a href="/register" className="text-blue-600 hover:text-blue-800 font-medium">
               Зарегистрироваться
             </a>
           </p>
         )}
       </div>
-
-      {/* Добавь отладочную информацию (удали в продакшене) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-6 p-3 bg-gray-100 rounded-lg">
-          <p className="text-xs text-gray-600 font-mono">
-            
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              console.log('Проверка Supabase клиента:', supabase);
-              supabase.auth.getUser().then(({data}) => {
-                console.log('Текущий пользователь:', data.user);
-              });
-            }}
-            className="mt-2 text-xs text-blue-600 hover:text-blue-800"
-          >
-            Проверить авторизацию
-          </button>
-        </div>
-      )}
     </div>
   );
 }
