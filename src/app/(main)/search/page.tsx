@@ -6,7 +6,7 @@ import { Search, User, Hash, Grid, Clock } from 'lucide-react';
 import Link from 'next/link';
 import debounce from 'lodash/debounce';
 
-type SearchTab = 'users' | 'posts' | 'hashtags';
+type SearchTab = 'users' | 'posts' | 'hashtags' | 'all';
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,6 +18,7 @@ export default function SearchPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [searchStats, setSearchStats] = useState({
+    all: 0,
     posts: 0,
     users: 0,
     hashtags: 0
@@ -28,7 +29,7 @@ export default function SearchPage() {
     debounce(async (query: string, tab: SearchTab) => {
       if (!query.trim()) {
         setResults({ users: [], posts: [], hashtags: [] });
-        setSearchStats({ posts: 0, users: 0, hashtags: 0 });
+        setSearchStats({ posts: 0, users: 0, hashtags: 0,  all: 0});
         return;
       }
 
@@ -52,8 +53,23 @@ export default function SearchPage() {
           );
         }
 
-        if (tab === 'posts' || tab === 'posts') {
+        if (tab === 'users' || tab === 'all') {
           // Поиск постов с полной информацией
+          searches.push(
+            supabase
+              .from('profiles')
+              .select(`*`)
+              .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
+              .limit(20)
+              .then(({ data }) => {
+                setResults((prev: any) => ({ ...prev, users: data || [] }));
+                setSearchStats(prev => ({ ...prev, users: data?.length || 0 }));
+              })
+          );
+        }
+
+        if (tab === 'posts' || tab === 'all') {
+
           searches.push(
             supabase
               .from('posts')
@@ -61,7 +77,7 @@ export default function SearchPage() {
                 *,
                 profiles(*),
                 post_hashtags(
-                  hashtag:hashtags(*)
+                  hashtag:hashtags(*) 
                 )
               `)
               .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
@@ -73,9 +89,8 @@ export default function SearchPage() {
               })
           );
         }
-
-        if (tab === 'hashtags' || tab === 'posts') {
-          // Поиск хештегов
+        if (tab === 'hashtags' || tab === 'all') {
+       // Поиск хештегов
           searches.push(
             supabase
               .from('hashtags')
